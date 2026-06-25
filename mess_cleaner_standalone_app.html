@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mess Cleaner AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar for log area */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen p-4 md:p-8">
+
+    <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200 relative">
+        <!-- Header -->
+        <div class="bg-blue-600 p-6 text-white text-center">
+            <h1 class="text-3xl font-bold mb-2 flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/><path d="M12 10v6"/><path d="m9 13 3-3 3 3"/></svg>
+                Mess Cleaner AI
+            </h1>
+            <p class="text-blue-100 text-sm">Organize your files locally using Natural Language</p>
+        </div>
+
+        <div class="p-6 space-y-8">
+            
+            <!-- Step 1: API Setup -->
+            <section class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <h2 class="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                    <span class="bg-slate-200 text-slate-600 rounded-full w-6 h-6 flex items-center justify-center text-sm">1</span> 
+                    Setup Gemini API
+                </h2>
+                <div class="flex gap-2">
+                    <input type="password" id="apiKeyInput" placeholder="Enter your Google Gemini API Key" 
+                           class="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <button onclick="saveApiKey()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg transition-colors">Save</button>
+                </div>
+                <p id="apiStatus" class="text-xs text-green-600 mt-2 hidden">✓ API Key saved to local storage.</p>
+            </section>
+
+            <!-- Step 2: Folder & Prompt -->
+            <section>
+                <h2 class="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                    <span class="bg-slate-200 text-slate-600 rounded-full w-6 h-6 flex items-center justify-center text-sm">2</span> 
+                    Select Folder & Define Rule
+                </h2>
+                
+                <div class="mb-4">
+                    <!-- Hidden fallback input for iframe environments -->
+                    <input type="file" id="fallbackFolderInput" webkitdirectory directory multiple class="hidden" onchange="handleFallbackFolderSelect(event)">
+                    
+                    <button onclick="selectFolder()" class="w-full border-2 border-dashed border-blue-400 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium py-4 rounded-lg transition-colors flex flex-col items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                        <span id="folderStatus">Click to Select Folder</span>
+                    </button>
+                    <p id="fileCountStatus" class="text-sm text-slate-500 mt-2 text-center"></p>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">How should we organize this?</label>
+                    <textarea id="promptInput" rows="3" placeholder="e.g. Group all images into a 'Photos' folder by year, and put PDF documents into 'Invoices' or 'Guides'..." 
+                              class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                </div>
+
+                <button id="generateBtn" onclick="generatePlan()" disabled class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg transition-colors shadow-sm">
+                    Generate AI Plan
+                </button>
+            </section>
+
+            <!-- Step 3: Review & Execute -->
+            <section id="executionSection" class="hidden border-t border-slate-200 pt-6">
+                <h2 class="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                    <span class="bg-slate-200 text-slate-600 rounded-full w-6 h-6 flex items-center justify-center text-sm">3</span> 
+                    Review & Execute
+                </h2>
+                
+                <div class="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden mb-4">
+                    <div class="max-h-64 overflow-y-auto p-0">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-200 text-slate-600 sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-2">File Name</th>
+                                    <th class="px-4 py-2">Moving To</th>
+                                </tr>
+                            </thead>
+                            <tbody id="planTableBody" class="divide-y divide-slate-200">
+                                <!-- Populated via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <button id="executeBtn" onclick="executePlan()" class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-lg transition-colors shadow-sm flex justify-center items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+                    Confirm & Move Files
+                </button>
+            </section>
+
+            <!-- Logs -->
+            <section>
+                <div class="bg-slate-900 text-green-400 font-mono text-sm p-4 rounded-lg h-48 overflow-y-auto shadow-inner" id="logArea">
+                    > System initialized. Waiting for user input...
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <!-- Custom UI Modal (Replaces alerts) -->
+    <div id="customModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 id="modalTitle" class="text-xl font-bold text-slate-800 mb-2">Title</h3>
+            <p id="modalMessage" class="text-slate-600 mb-6 whitespace-pre-line">Message</p>
+            <button onclick="closeModal()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition-colors">Got it</button>
+        </div>
+    </div>
+
+    <script>
+        let apiKey = localStorage.getItem('gemini_api_key') || '';
+        let globalDirHandle = null;
+        let filesList = [];
+        let aiPlan = null;
+
+        // Initialize UI
+        if (apiKey) {
+            document.getElementById('apiKeyInput').value = apiKey;
+            document.getElementById('apiStatus').classList.remove('hidden');
+        }
+
+        function log(message) {
+            const logArea = document.getElementById('logArea');
+            const time = new Date().toLocaleTimeString();
+            logArea.innerHTML += `<br>> [${time}] ${message}`;
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function showModal(title, message) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalMessage').innerText = message;
+            document.getElementById('customModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('customModal').classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            const val = document.getElementById('apiKeyInput').value.trim();
+            if (val) {
+                apiKey = val;
+                localStorage.setItem('gemini_api_key', apiKey);
+                document.getElementById('apiStatus').classList.remove('hidden');
+                log("API Key saved securely to browser local storage.");
+            }
+        }
+
+        async function selectFolder() {
+            try {
+                if (!window.showDirectoryPicker) {
+                    throw new Error("File System Access API is not supported in this browser.");
+                }
+
+                // Ask user for directory access (Requires Read/Write to move files)
+                globalDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                
+                document.getElementById('folderStatus').innerText = `Selected: /${globalDirHandle.name}`;
+                log(`Granted access to folder: ${globalDirHandle.name}`);
+                
+                filesList = [];
+                // Iterate over files in the root of the selected directory
+                for await (const entry of globalDirHandle.values()) {
+                    if (entry.kind === 'file') {
+                        filesList.push(entry.name);
+                    }
+                }
+
+                document.getElementById('fileCountStatus').innerText = `Found ${filesList.length} files.`;
+                log(`Read ${filesList.length} files from directory.`);
+                
+                if (filesList.length > 0) {
+                    document.getElementById('generateBtn').disabled = false;
+                } else {
+                    document.getElementById('generateBtn').disabled = true;
+                    log("Warning: No files found in the root of this folder.");
+                }
+
+            } catch (err) {
+                // Handle iframe security error by falling back to standard file picker (Read-Only)
+                if (err.name === 'SecurityError' || err.message.includes('cross origin') || !window.showDirectoryPicker) {
+                    log("Iframe/Security limit detected. Falling back to Read-Only folder selection to demonstrate AI.");
+                    document.getElementById('fallbackFolderInput').click();
+                } else if (err.name !== 'AbortError') {
+                    console.error(err);
+                    log(`Error accessing folder: ${err.message}`);
+                    showModal("Folder Error", err.message);
+                }
+            }
+        }
+
+        // Fallback handler for iframe preview environments
+        function handleFallbackFolderSelect(event) {
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
+
+            filesList = [];
+            let folderName = "Preview_Folder";
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const pathParts = file.webkitRelativePath.split('/');
+                if (pathParts.length > 0) {
+                    folderName = pathParts[0];
+                }
+                // Only take top-level files for this tool
+                if (pathParts.length === 2) {
+                    filesList.push(file.name);
+                }
+            }
+
+            document.getElementById('folderStatus').innerText = `Selected (Read-Only): /${folderName}`;
+            document.getElementById('fileCountStatus').innerText = `Found ${filesList.length} files.`;
+            log(`Read ${filesList.length} files via Fallback Mode.`);
+
+            if (filesList.length > 0) {
+                document.getElementById('generateBtn').disabled = false;
+            } else {
+                document.getElementById('generateBtn').disabled = true;
+                log("Warning: No files found in the root of this folder.");
+            }
+        }
+
+        async function generatePlan() {
+            if (!apiKey) {
+                showModal("Missing API Key", "Please save your Gemini API Key in step 1 before proceeding.");
+                return;
+            }
+
+            const prompt = document.getElementById('promptInput').value.trim();
+            if (!prompt) {
+                showModal("Missing Rule", "Please enter a rule for organizing the files.");
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = true;
+            btn.innerText = "Analyzing files with AI...";
+            log("Sending request to Gemini API...");
+
+            // Prepare payload for Gemini API
+            const payload = {
+                contents: [{
+                    parts: [{ text: `User Rule: ${prompt}\n\nList of files to organize: ${JSON.stringify(filesList)}` }]
+                }],
+                systemInstruction: {
+                    parts: [{ text: "You are an automated file organizer. Based on the user's rule and the list of filenames, categorize every single file into a destination folder. Return ONLY a valid JSON array of objects. Format: [{\"file\": \"original.ext\", \"destination\": \"FolderName\"}]. Do NOT wrap in markdown blocks, output raw JSON only." }]
+                },
+                generationConfig: {
+                    responseMimeType: "application/json"
+                }
+            };
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error?.message || "API request failed");
+                }
+
+                const data = await response.json();
+                const jsonText = data.candidates[0].content.parts[0].text;
+                
+                aiPlan = JSON.parse(jsonText);
+                renderPlanTable(aiPlan);
+                
+                document.getElementById('executionSection').classList.remove('hidden');
+                log(`AI Plan generated successfully. ${aiPlan.length} files mapped.`);
+                
+            } catch (err) {
+                log(`❌ AI Generation Error: ${err.message}`);
+                console.error(err);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Regenerate AI Plan";
+            }
+        }
+
+        function renderPlanTable(plan) {
+            const tbody = document.getElementById('planTableBody');
+            tbody.innerHTML = '';
+            
+            plan.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-4 py-2 font-medium text-slate-800">${item.file}</td>
+                    <td class="px-4 py-2 text-blue-600 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                        ${item.destination}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function executePlan() {
+            if (!aiPlan) return;
+            
+            // If we are in iframe fallback mode, we can't actually move files.
+            if (!globalDirHandle) {
+                showModal(
+                    "Simulation Complete! 🚀", 
+                    "The AI has successfully mapped out how your files should be organized!\n\nHowever, because you are currently running this app inside a Preview Window (an iframe), browser security prevents it from physically moving your files.\n\nTo actually move your files, simply download this HTML file to your computer and open it directly in a new browser tab."
+                );
+                return;
+            }
+
+            const btn = document.getElementById('executeBtn');
+            btn.disabled = true;
+            btn.innerText = "Moving files... Please don't close window.";
+            log("--- Starting Execution ---");
+
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const item of aiPlan) {
+                try {
+                    // 1. Get the original file
+                    const sourceFileHandle = await globalDirHandle.getFileHandle(item.file);
+                    const file = await sourceFileHandle.getFile();
+
+                    // 2. Ensure destination directory exists
+                    const destDirHandle = await globalDirHandle.getDirectoryHandle(item.destination, { create: true });
+                    
+                    // 3. Create file in destination
+                    const destFileHandle = await destDirHandle.getFileHandle(item.file, { create: true });
+                    const writable = await destFileHandle.createWritable();
+                    
+                    // 4. Copy contents
+                    await writable.write(file);
+                    await writable.close();
+
+                    // 5. Delete original file
+                    await globalDirHandle.removeEntry(item.file);
+                    
+                    log(`✅ Moved: ${item.file} -> ${item.destination}/`);
+                    successCount++;
+                } catch (err) {
+                    log(`❌ Failed to move ${item.file}: ${err.message}`);
+                    failCount++;
+                }
+            }
+
+            log(`--- Execution Complete ---`);
+            log(`Success: ${successCount} | Failed: ${failCount}`);
+            
+            showModal(
+                "Organization Complete!",
+                `Successfully moved: ${successCount} files.\nFailed: ${failCount} files.`
+            );
+            
+            btn.innerText = "Done!";
+            
+            // Re-read directory to update lists
+            selectFolder();
+        }
+    </script>
+</body>
+</html>
